@@ -40,7 +40,7 @@ test('map cache, explicit refresh, filters, pause, selection and restoration', a
   await page.getByRole('button', { name: 'APPLY', exact: true }).click();
   await expect(page.locator('#count')).toHaveText('AIRCRAFT 1 / 1');
   await page.reload();
-  await expect(page.locator('#osm-status')).toContainText('browser cache');
+  await expect(page.locator('#osm-status')).toHaveText(/^Map: \d+ elements · browser cache$/);
   await expect(page.locator('#count')).toHaveText('AIRCRAFT 1 / 1');
   expect(mapRequests).toBe(1);
   await page.locator('#reload-osm').click();
