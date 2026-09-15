@@ -1,0 +1,6 @@
+node_modules/
+dist/
+data/cache/
+data/settings.json
+data/tracks.json
+.env
