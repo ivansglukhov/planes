@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: planes-radar
+    runtime: node
+    plan: free
+    region: frankfurt
+    repo: https://github.com/ivansglukhov/planes
+    branch: main
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
+    healthCheckPath: /
+    autoDeployTrigger: commit
+    envVars:
+      - key: NODE_VERSION
+        value: 22
