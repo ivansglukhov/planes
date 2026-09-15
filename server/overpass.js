@@ -1,22 +1,53 @@
-import crypto from 'node:crypto';
-import { cacheJson } from './storage.js';
+const DEFAULT_ENDPOINTS = [
+  'https://overpass.private.coffee/api/interpreter',
+  'https://maps.mail.ru/osm/tools/overpass/api/interpreter',
+  'https://overpass-api.de/api/interpreter'
+];
 
-const URL = process.env.OVERPASS_URL || 'https://overpass-api.de/api/interpreter';
+const endpoints = [...new Set([
+  process.env.OVERPASS_URL,
+  ...DEFAULT_ENDPOINTS
+].filter(Boolean))];
 
-function query(settings){
-  const {lat,lon}=settings.center, r=Math.round(settings.radiusM);
-  return `[out:json][timeout:90];(
-way(around:${r},${lat},${lon})["highway"~"^(primary|secondary|primary_link|secondary_link)$"];
-way(around:${r},${lat},${lon})["building"];
-relation(around:${r},${lat},${lon})["building"];
+function query(settings) {
+  const { lat, lon } = settings.center;
+  const radius = Math.round(settings.radiusM);
+  return `[out:json][timeout:25];(
+way(around:${radius},${lat},${lon})["highway"~"^(primary|secondary|primary_link|secondary_link)$"];
+way(around:${radius},${lat},${lon})["building"]["building:levels"];
+way(around:${radius},${lat},${lon})["building"]["height"];
+relation(around:${radius},${lat},${lon})["building"]["building:levels"];
+relation(around:${radius},${lat},${lon})["building"]["height"];
 );out geom;`;
 }
 
-export async function getOsm(settings){
-  const key=crypto.createHash('sha1').update(JSON.stringify(settings.center)+settings.radiusM).digest('hex').slice(0,16);
-  return cacheJson(`osm/${key}.json`, async()=>{
-    const r=await fetch(URL,{method:'POST',headers:{'content-type':'application/x-www-form-urlencoded','user-agent':'personal-air-radar/0.1'},body:new URLSearchParams({data:query(settings)}),signal:AbortSignal.timeout(95000)});
-    if(!r.ok) throw new Error(`Overpass ${r.status}`);
-    return r.json();
+async function request(endpoint, settings) {
+  const response = await fetch(endpoint, {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/x-www-form-urlencoded',
+      'user-agent': 'personal-air-radar/0.2'
+    },
+    body: new URLSearchParams({ data: query(settings) }),
+    signal: AbortSignal.timeout(28000)
   });
+  if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
+  const data = await response.json();
+  if (!Array.isArray(data.elements) || data.remark) throw new Error(data.remark || 'Invalid Overpass response');
+  return data;
+}
+
+export async function getOsm(settings) {
+  const failures = [];
+  for (const endpoint of endpoints) {
+    try {
+      return await request(endpoint, settings);
+    } catch (error) {
+      const cause = error.cause?.code || error.cause?.message || error.code || '';
+      const reason = `${new URL(endpoint).host}: ${error.message || error} ${cause}`.trim();
+      console.warn('Overpass request failed:', reason);
+      failures.push(reason);
+    }
+  }
+  throw new Error(`Overpass unavailable (${failures.join('; ')})`);
 }

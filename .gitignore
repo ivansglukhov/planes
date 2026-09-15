@@ -4,3 +4,5 @@ data/cache/
 data/settings.json
 data/tracks.json
 .env
+test-results/
+playwright-report/

@@ -25,7 +25,8 @@ function parseAircraft(id, a) {
     origin: a[11] || '',
     destination: a[12] || '',
     flight: a[13] || '',
-    verticalSpeedMps: (Number(a[15]) || 0) * 0.00508,
+    // The legacy feed does not provide a verified vertical-rate field.
+    verticalSpeedMps: null,
     callsign: a[16] || a[13] || '',
     source: 'fr24-web'
   };
